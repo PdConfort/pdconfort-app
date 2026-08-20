@@ -408,6 +408,7 @@
 
     <div class="actions-bar">
       <button class="btn btn-accent" onclick="generatePDF()">🖨️ Gerar orçamento (imprimir / PDF)</button>
+      <button class="btn btn-ghost" onclick="saveOrcamentoHistorico()">💾 Guardar no histórico</button>
       <button class="btn btn-ghost" onclick="newQuote()">Nova proposta</button>
       <span style="color:var(--text-faint); font-size:.78rem; margin-left:auto;">PD Confort · 934 099 220</span>
     </div>
@@ -490,6 +491,7 @@
 
     <div class="actions-bar">
       <button class="btn btn-accent" onclick="generatePDFMnt()">🖨️ Gerar orçamento (imprimir / PDF)</button>
+      <button class="btn btn-ghost" onclick="saveOrcamentoHistoricoMnt()">💾 Guardar no histórico</button>
       <button class="btn btn-ghost" onclick="newQuoteMnt()">Nova proposta</button>
       <span style="color:var(--text-faint); font-size:.78rem; margin-left:auto;">PD Confort · 934 099 220</span>
     </div>
@@ -700,12 +702,12 @@ const COPPER_SIZES = ["1/4","3/8","1/2","5/8","3/4"];
 const BRAND_CATEGORIES = {
   "AUX": [
     {name:"Split Série F", caps:["9000","12000","18000","24000"]},
+    {name:"Split Série C - Branca", caps:["9000","12000","18000","24000"]},
     {name:"Split Série C - Preto", caps:["9000","12000","18000","24000"]},
     {name:"Multi Split - Unidade Exterior", caps:["14000","18000","21000","26000","27000","35000","40000"]},
     {name:"Multi Split - Unidade Interior Série F", caps:["7000","9000","12000","18000","24000"]},
     {name:"Multi Split - Unidade Interior Série C", caps:["7000","9000","12000","18000","24000"]},
     {name:"Multi Split - Unidade Interior Série C Preto", caps:["7000","9000","12000","18000","24000"]},
-    {name:"Multi Split Série C Branca", caps:["9000","12000","18000","24000"]},
     {name:"Unidade Interior Duplo Fluxo", caps:["9000","12000","16000"]},
     {name:"Unidade Interior Cassete 1 Via", caps:["9000","12000","18000","24000"]},
   ]
@@ -715,6 +717,12 @@ function categoriesFor(brand){
 }
 // Migrate legacy flat data ({brand:{cap:{...}}}) into the categorized shape ({brand:{"Split":{cap:{...}}}})
 function normalizeEquipmentData(){
+  // One-off rename: "Multi Split Série C Branca" passou a chamar-se "Split Série C - Branca".
+  // Preserva os preços já guardados por quem tinha a app com o nome antigo.
+  if(equipmentData.AUX && equipmentData.AUX['Multi Split Série C Branca'] && !equipmentData.AUX['Split Série C - Branca']){
+    equipmentData.AUX['Split Série C - Branca'] = equipmentData.AUX['Multi Split Série C Branca'];
+    delete equipmentData.AUX['Multi Split Série C Branca'];
+  }
   BRANDS.forEach(brand=>{
     if(!equipmentData[brand]) equipmentData[brand] = {};
     const cats = categoriesFor(brand);
@@ -732,7 +740,7 @@ function normalizeEquipmentData(){
   });
 }
 
-const DEFAULT_EQUIPMENT_DATA = {"VOX": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": "410"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": "705"}, "24000": {"modelo": "", "preco": "850"}}}, "AUX": {"Split Série F": {"9000": {"modelo": "", "preco": "440"}, "12000": {"modelo": "", "preco": "450"}, "18000": {"modelo": "", "preco": "715"}, "24000": {"modelo": "", "preco": "985"}}, "Split Série C - Preto": {"9000": {"modelo": "", "preco": "580"}, "12000": {"modelo": "", "preco": "630"}, "18000": {"modelo": "", "preco": "920"}, "24000": {"modelo": "", "preco": "1245"}}, "Multi Split - Unidade Exterior": {"14000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "21000": {"modelo": "", "preco": ""}, "26000": {"modelo": "", "preco": ""}, "27000": {"modelo": "", "preco": ""}, "35000": {"modelo": "", "preco": ""}, "40000": {"modelo": "", "preco": ""}}, "Multi Split - Unidade Interior Série F": {"7000": {"modelo": "", "preco": ""}, "9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}, "Multi Split - Unidade Interior Série C": {"7000": {"modelo": "", "preco": ""}, "9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}, "Multi Split - Unidade Interior Série C Preto": {"7000": {"modelo": "", "preco": ""}, "9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}, "Multi Split Série C Branca": {"9000": {"modelo": "", "preco": "530"}, "12000": {"modelo": "", "preco": "575"}, "18000": {"modelo": "", "preco": "840"}, "24000": {"modelo": "", "preco": "1115"}}, "Unidade Interior Duplo Fluxo": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}}, "Unidade Interior Cassete 1 Via": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Daikin": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Mitsubishi": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "HR35", "preco": "950"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Hitachi": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Carrier": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "HTW": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "LG": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Samsung": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "TCL": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Daitsu": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Gaiatsu": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Giatsu": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Beko": {"Split": {"9000": {"modelo": "", "preco": "360"}, "12000": {"modelo": "", "preco": "395"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": "840"}}}, "Haier": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Hisense": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Beltax": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Midea": {"Split": {"9000": {"modelo": "", "preco": "755"}, "12000": {"modelo": "", "preco": "835"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": "1400"}, "24000": {"modelo": "", "preco": "1775"}}}, "Bosch": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}};
+const DEFAULT_EQUIPMENT_DATA = {"VOX": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": "410"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": "705"}, "24000": {"modelo": "", "preco": "850"}}}, "AUX": {"Split Série F": {"9000": {"modelo": "", "preco": "440"}, "12000": {"modelo": "", "preco": "450"}, "18000": {"modelo": "", "preco": "715"}, "24000": {"modelo": "", "preco": "985"}}, "Split Série C - Branca": {"9000": {"modelo": "", "preco": "530"}, "12000": {"modelo": "", "preco": "575"}, "18000": {"modelo": "", "preco": "840"}, "24000": {"modelo": "", "preco": "1115"}}, "Split Série C - Preto": {"9000": {"modelo": "", "preco": "580"}, "12000": {"modelo": "", "preco": "630"}, "18000": {"modelo": "", "preco": "920"}, "24000": {"modelo": "", "preco": "1245"}}, "Multi Split - Unidade Exterior": {"14000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "21000": {"modelo": "", "preco": ""}, "26000": {"modelo": "", "preco": ""}, "27000": {"modelo": "", "preco": ""}, "35000": {"modelo": "", "preco": ""}, "40000": {"modelo": "", "preco": ""}}, "Multi Split - Unidade Interior Série F": {"7000": {"modelo": "", "preco": ""}, "9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}, "Multi Split - Unidade Interior Série C": {"7000": {"modelo": "", "preco": ""}, "9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}, "Multi Split - Unidade Interior Série C Preto": {"7000": {"modelo": "", "preco": ""}, "9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}, "Unidade Interior Duplo Fluxo": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}}, "Unidade Interior Cassete 1 Via": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Daikin": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Mitsubishi": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "HR35", "preco": "950"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Hitachi": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Carrier": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "HTW": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "LG": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Samsung": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "TCL": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Daitsu": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Gaiatsu": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Giatsu": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Beko": {"Split": {"9000": {"modelo": "", "preco": "360"}, "12000": {"modelo": "", "preco": "395"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": "840"}}}, "Haier": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Hisense": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Beltax": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}, "Midea": {"Split": {"9000": {"modelo": "", "preco": "755"}, "12000": {"modelo": "", "preco": "835"}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": "1400"}, "24000": {"modelo": "", "preco": "1775"}}}, "Bosch": {"Split": {"9000": {"modelo": "", "preco": ""}, "12000": {"modelo": "", "preco": ""}, "16000": {"modelo": "", "preco": ""}, "18000": {"modelo": "", "preco": ""}, "24000": {"modelo": "", "preco": ""}}}};
 const DEFAULT_OTHER_PRICES = {"cobre_1_4": "3.80", "cobre_3_8": "5.50", "cobre_1_2": "", "cobre_5_8": "", "cobre_3_4": "", "cabo_com": "2.50", "cabo_alim": "2.60", "dreno": "1.20", "suportes": "26", "gas_extra": "", "calha_100x50": "", "tampa_100x50": "", "curva_100x50": "", "calha_20x20": "", "tampa_20x20": "", "curva_20x20": "", "calha_dupla_100x50": "", "curva_dupla_100x50": "", "tampa_dupla_100x50": "", "mao_obra": "100"};
 const DEFAULT_MATERIALS = [
   {
@@ -1802,6 +1810,7 @@ function renderTotalsMnt(){
 function newQuote(){
   if(items.length && !confirm('Começar uma nova proposta? Os itens atuais serão limpos.')) return;
   items = [];
+  currentQuoteId = null;
   document.getElementById('cliNome').value = '';
   document.getElementById('cliMorada').value = '';
   document.getElementById('cliNif').value = '';
@@ -1813,6 +1822,7 @@ function newQuote(){
 function newQuoteMnt(){
   if(itemsMnt.length && !confirm('Começar uma nova proposta? Os itens atuais serão limpos.')) return;
   itemsMnt = [];
+  currentQuoteIdMnt = null;
   document.getElementById('cliMntNome').value = '';
   document.getElementById('cliMntMorada').value = '';
   document.getElementById('cliMntNif').value = '';
@@ -1827,7 +1837,16 @@ function newQuoteMnt(){
 ============================================================ */
 function saveHistorico(){ debouncedSave('quotes-history', ()=>historico); }
 function addHistorico(record){
-  historico.push(record);
+  // Atualiza a entrada existente (mesmo rascunho, pelo id interno) em vez de duplicar,
+  // para poderes clicar em "Gerar" e "Guardar" à vontade sem criar linhas repetidas.
+  // (Não usamos o nº do orçamento para isto porque esse campo é editável à mão e dois
+  // rascunhos diferentes podem ter, por acidente, o mesmo número.)
+  const idx = historico.findIndex(r => r.id === record.id);
+  if(idx >= 0){
+    historico[idx] = record;
+  } else {
+    historico.push(record);
+  }
   saveHistorico();
   renderHistorico();
 }
@@ -1938,8 +1957,10 @@ function printHtmlAndPrint(html){
   document.getElementById('printArea').innerHTML = html;
   setTimeout(()=>window.print(), 80);
 }
-function generatePDF(){
-  if(!items.length){ showToast('Adicione pelo menos um item'); return; }
+let currentQuoteId = null;
+let currentQuoteIdMnt = null;
+function buildOrcamentoRecord(){
+  if(!currentQuoteId) currentQuoteId = genId();
   const nome = document.getElementById('cliNome').value || '—';
   const morada = document.getElementById('cliMorada').value || '—';
   const nif = document.getElementById('cliNif').value || '—';
@@ -1949,20 +1970,16 @@ function generatePDF(){
   const validity = document.getElementById('quoteValidity').value;
   const obs = document.getElementById('quoteObs').value;
   const t = renderTotals();
-
-  const html = buildPrintHtml({title:'ORÇAMENTO — EQUIPAMENTO', num, date, validity, nome, morada, nif, itemsList: items, subtotal: t.subtotal, ivaOn: t.ivaOn, rate: t.rate, ivaVal: t.ivaVal, grand: t.grand, obs, email});
-  printHtmlAndPrint(html);
-
-  addHistorico({
-    id: genId(), tipo: 'Equipamento', numero: num, dataStr: date,
+  return {
+    id: currentQuoteId, tipo: 'Equipamento', numero: num, dataStr: date,
     dataISO: (parseDatePT(date) || new Date()).toISOString(),
     cliente: {nome, morada, nif}, items: JSON.parse(JSON.stringify(items)),
     subtotal: t.subtotal, ivaOn: t.ivaOn, rate: t.rate, ivaVal: t.ivaVal, grand: t.grand,
     obs, validity, email, createdAt: new Date().toISOString()
-  });
+  };
 }
-function generatePDFMnt(){
-  if(!itemsMnt.length){ showToast('Adicione pelo menos um item'); return; }
+function buildOrcamentoRecordMnt(){
+  if(!currentQuoteIdMnt) currentQuoteIdMnt = genId();
   const nome = document.getElementById('cliMntNome').value || '—';
   const morada = document.getElementById('cliMntMorada').value || '—';
   const nif = document.getElementById('cliMntNif').value || '—';
@@ -1972,17 +1989,47 @@ function generatePDFMnt(){
   const validity = document.getElementById('quoteValidityMnt').value;
   const obs = document.getElementById('quoteObsMnt').value;
   const t = renderTotalsMnt();
-
-  const html = buildPrintHtml({title:'ORÇAMENTO — MANUTENÇÃO PREVENTIVA', num, date, validity, nome, morada, nif, itemsList: itemsMnt, subtotal: t.subtotal, ivaOn: t.ivaOn, rate: t.rate, ivaVal: t.ivaVal, grand: t.grand, obs, email});
-  printHtmlAndPrint(html);
-
-  addHistorico({
-    id: genId(), tipo: 'Manutenção Preventiva', numero: num, dataStr: date,
+  return {
+    id: currentQuoteIdMnt, tipo: 'Manutenção Preventiva', numero: num, dataStr: date,
     dataISO: (parseDatePT(date) || new Date()).toISOString(),
     cliente: {nome, morada, nif}, items: JSON.parse(JSON.stringify(itemsMnt)),
     subtotal: t.subtotal, ivaOn: t.ivaOn, rate: t.rate, ivaVal: t.ivaVal, grand: t.grand,
     obs, validity, email, createdAt: new Date().toISOString()
+  };
+}
+function saveOrcamentoHistorico(){
+  if(!items.length){ showToast('Adicione pelo menos um item antes de guardar'); return; }
+  addHistorico(buildOrcamentoRecord());
+  showToast('Orçamento guardado no histórico');
+}
+function saveOrcamentoHistoricoMnt(){
+  if(!itemsMnt.length){ showToast('Adicione pelo menos um item antes de guardar'); return; }
+  addHistorico(buildOrcamentoRecordMnt());
+  showToast('Orçamento guardado no histórico');
+}
+function generatePDF(){
+  if(!items.length){ showToast('Adicione pelo menos um item'); return; }
+  const record = buildOrcamentoRecord();
+  const html = buildPrintHtml({
+    title:'ORÇAMENTO — EQUIPAMENTO', num: record.numero, date: record.dataStr, validity: record.validity,
+    nome: record.cliente.nome, morada: record.cliente.morada, nif: record.cliente.nif,
+    itemsList: items, subtotal: record.subtotal, ivaOn: record.ivaOn, rate: record.rate, ivaVal: record.ivaVal, grand: record.grand,
+    obs: record.obs, email: record.email
   });
+  printHtmlAndPrint(html);
+  addHistorico(record);
+}
+function generatePDFMnt(){
+  if(!itemsMnt.length){ showToast('Adicione pelo menos um item'); return; }
+  const record = buildOrcamentoRecordMnt();
+  const html = buildPrintHtml({
+    title:'ORÇAMENTO — MANUTENÇÃO PREVENTIVA', num: record.numero, date: record.dataStr, validity: record.validity,
+    nome: record.cliente.nome, morada: record.cliente.morada, nif: record.cliente.nif,
+    itemsList: itemsMnt, subtotal: record.subtotal, ivaOn: record.ivaOn, rate: record.rate, ivaVal: record.ivaVal, grand: record.grand,
+    obs: record.obs, email: record.email
+  });
+  printHtmlAndPrint(html);
+  addHistorico(record);
 }
 </script>
 
@@ -2001,6 +2048,8 @@ const DRIVE_AUTOSYNC_DELAY_MS = 4000;
 
 let gTokenClient = null;
 let gAccessToken = null;
+let gTokenExpiresAt = 0;
+let gTokenRefreshTimer = null;
 let driveAutoSyncTimer = null;
 
 function driveConfigured(){
@@ -2008,17 +2057,18 @@ function driveConfigured(){
 }
 
 function isDriveSignedIn(){
-  return !!gAccessToken;
+  return !!gAccessToken || !!localStorage.getItem('pdconfort:drive-signed-in');
 }
 
 function setEl(id, fn){ const el = document.getElementById(id); if(el) fn(el); }
 
 function updateDriveUI(){
   const signed = isDriveSignedIn();
+  const hasError = signed && !!localStorage.getItem('pdconfort:drive-sync-error');
   setEl('syncSetupWarning', el=> el.style.display = driveConfigured() ? 'none' : 'block');
-  setEl('syncPill', el=> el.classList.toggle('on', signed) || el.classList.toggle('off', !signed));
-  setEl('syncPillText', el=> el.textContent = signed ? 'Ligado ao Google Drive' : 'Não ligado');
-  setEl('btnDriveSignIn', el=> el.style.display = signed ? 'none' : '');
+  setEl('syncPill', el=> el.classList.toggle('on', signed && !hasError) || el.classList.toggle('off', !signed || hasError));
+  setEl('syncPillText', el=> el.textContent = hasError ? 'Sessão expirada — liga novamente' : (signed ? 'Ligado ao Google Drive' : 'Não ligado'));
+  setEl('btnDriveSignIn', el=> el.style.display = signed && !hasError ? 'none' : '');
   setEl('btnDriveBackup', el=> el.style.display = signed ? '' : 'none');
   setEl('btnDriveRestore', el=> el.style.display = signed ? '' : 'none');
   setEl('btnDriveSignOut', el=> el.style.display = signed ? '' : 'none');
@@ -2058,13 +2108,48 @@ function requestDriveToken(interactive){
     gTokenClient.callback = (resp)=>{
       if(resp.error){ reject(resp); return; }
       gAccessToken = resp.access_token;
+      gTokenExpiresAt = Date.now() + ((resp.expires_in || 3500) * 1000);
       localStorage.setItem('pdconfort:drive-signed-in', '1');
+      localStorage.removeItem('pdconfort:drive-sync-error');
+      scheduleTokenRefresh(resp.expires_in || 3500);
       resolve(gAccessToken);
     };
     try{
       gTokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' });
     }catch(e){ reject(e); }
   });
+}
+
+// Os tokens de acesso do Google expiram ao fim de ~1 hora. Sem isto, uma app
+// deixada aberta durante muito tempo (ou reaberta no dia seguinte) parava de
+// sincronizar silenciosamente, sem qualquer aviso. Renovamos o token um pouco
+// antes de expirar, e também há uma tentativa automática de renovação sempre
+// que uma chamada à Drive API responde com 401 (ver driveApiFetch).
+function scheduleTokenRefresh(expiresInSec){
+  clearTimeout(gTokenRefreshTimer);
+  const delayMs = Math.max((expiresInSec - 300) * 1000, 30000);
+  gTokenRefreshTimer = setTimeout(()=>{
+    if(isDriveSignedIn()) requestDriveToken(false).catch(()=>{});
+  }, delayMs);
+}
+
+async function driveApiFetch(url, options){
+  options = options || {};
+  options.headers = Object.assign({}, options.headers, { Authorization: `Bearer ${gAccessToken}` });
+  let res = await fetch(url, options);
+  if(res.status === 401){
+    try{
+      await requestDriveToken(false);
+    }catch(e){
+      localStorage.setItem('pdconfort:drive-sync-error', '1');
+      gAccessToken = null;
+      localStorage.removeItem('pdconfort:drive-signed-in');
+      throw new Error('A sessão do Google Drive expirou. Liga novamente.');
+    }
+    options.headers.Authorization = `Bearer ${gAccessToken}`;
+    res = await fetch(url, options);
+  }
+  return res;
 }
 
 async function driveSignIn(){
@@ -2092,7 +2177,10 @@ function driveSignOut(){
     }
   }catch(e){ console.error(e); }
   gAccessToken = null;
+  gTokenExpiresAt = 0;
+  clearTimeout(gTokenRefreshTimer);
   localStorage.removeItem('pdconfort:drive-signed-in');
+  localStorage.removeItem('pdconfort:drive-sync-error');
   updateDriveUI();
   showToast('Sessão do Google Drive terminada');
 }
@@ -2101,9 +2189,7 @@ async function driveFindFileId(){
   const cached = localStorage.getItem('pdconfort:drive-file-id');
   if(cached) return cached;
   const q = encodeURIComponent(`name='${DRIVE_BACKUP_FILENAME}' and trashed=false`);
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)`, {
-    headers: { Authorization: `Bearer ${gAccessToken}` }
-  });
+  const res = await driveApiFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)`);
   if(!res.ok) throw new Error('Falha ao procurar backup no Drive (' + res.status + ')');
   const data = await res.json();
   if(data.files && data.files.length){
@@ -2124,12 +2210,9 @@ async function driveUploadBackup(payload){
   const url = fileId
     ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
     : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-  const res = await fetch(url, {
+  const res = await driveApiFetch(url, {
     method: fileId ? 'PATCH' : 'POST',
-    headers: {
-      Authorization: `Bearer ${gAccessToken}`,
-      'Content-Type': `multipart/related; boundary=${boundary}`
-    },
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body
   });
   if(!res.ok) throw new Error('Falha ao enviar backup para o Drive (' + res.status + ')');
@@ -2141,9 +2224,7 @@ async function driveUploadBackup(payload){
 async function driveDownloadBackup(){
   const fileId = await driveFindFileId();
   if(!fileId) return null;
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${gAccessToken}` }
-  });
+  const res = await driveApiFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
   if(!res.ok) throw new Error('Falha ao transferir backup do Drive (' + res.status + ')');
   return await res.json();
 }
@@ -2180,19 +2261,26 @@ function applyFullBackupPayload(data){
 
 async function driveBackupNow(silent){
   if(!driveConfigured()){ if(!silent) showToast('Google Drive ainda não está configurado'); return; }
-  if(!gAccessToken){
+  if(!gAccessToken || Date.now() > gTokenExpiresAt){
     try{ await requestDriveToken(silent ? false : true); }
-    catch(e){ if(!silent) showToast('Inicia sessão com o Google primeiro'); updateDriveUI(); return; }
+    catch(e){
+      localStorage.setItem('pdconfort:drive-sync-error', '1');
+      updateDriveUI();
+      if(!silent) showToast('Inicia sessão com o Google primeiro');
+      return;
+    }
   }
   try{
     setDriveStatusText('A sincronizar…');
     await driveUploadBackup(buildFullBackupPayload());
     const now = new Date();
     localStorage.setItem('pdconfort:drive-last-sync', now.toISOString());
+    localStorage.removeItem('pdconfort:drive-sync-error');
     updateDriveUI();
     if(!silent) showToast('Backup guardado no Google Drive');
   }catch(e){
     console.error(e);
+    localStorage.setItem('pdconfort:drive-sync-error', '1');
     updateDriveUI();
     if(!silent) showToast('Erro ao sincronizar com o Google Drive');
   }
@@ -2200,7 +2288,7 @@ async function driveBackupNow(silent){
 
 async function driveRestoreNow(){
   if(!driveConfigured()){ showToast('Google Drive ainda não está configurado'); return; }
-  if(!gAccessToken){
+  if(!gAccessToken || Date.now() > gTokenExpiresAt){
     try{ await requestDriveToken(true); }
     catch(e){ showToast('Inicia sessão com o Google primeiro'); updateDriveUI(); return; }
   }
