@@ -613,9 +613,11 @@
         <button class="btn btn-accent" id="btnDriveSignIn" onclick="driveSignIn()">Ligar ao Google Drive</button>
         <button class="btn btn-ghost" id="btnDriveBackup" onclick="driveBackupNow(false)" style="display:none;">Fazer backup agora</button>
         <button class="btn btn-ghost" id="btnDriveRestore" onclick="driveRestoreNow()" style="display:none;">Restaurar do Google Drive</button>
+        <button class="btn btn-ghost" id="btnDriveChooseFolder" onclick="openFolderPicker()" style="display:none;">Escolher pasta de backup</button>
         <button class="btn btn-ghost" id="btnDriveSignOut" onclick="driveSignOut()" style="display:none;">Terminar sessão</button>
       </div>
-      <p class="sync-note">Depois de ligada, a app guarda automaticamente as alterações no Google Drive poucos segundos depois de cada edição (ficheiro <code>pdconfort-backup.json</code>, visível na tua Drive). É necessário ter ligação à internet no momento da sincronização.</p>
+      <p class="sync-note" id="syncFolderNote" style="display:none;"></p>
+      <p class="sync-note">Depois de ligada, a app guarda automaticamente as alterações no Google Drive poucos segundos depois de cada edição (ficheiro <code>pdconfort-backup.json</code>, visível na tua Drive). Por predefinição fica na raiz ("O meu disco"), a menos que escolhas outra pasta acima. É necessário ter ligação à internet no momento da sincronização.</p>
     </div>
 
     <div class="card">
@@ -667,6 +669,8 @@ if('serviceWorker' in navigator){
 
 <!-- Google Identity Services — usado só pela sincronização com o Google Drive (separador "Sincronização"). -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google API loader — usado só para o seletor de pastas da Google Drive (Google Picker). -->
+<script src="https://apis.google.com/js/api.js" async defer></script>
 
 <script>
 /* SheetJS (xlsx) v0.18.5 — bundled inline for offline use */
@@ -2049,6 +2053,10 @@ const GOOGLE_CLIENT_ID = '886244115976-cmm0sn81qnvf3een5up7ro4g6mpboq39.apps.goo
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_BACKUP_FILENAME = 'pdconfort-backup.json';
 const DRIVE_AUTOSYNC_DELAY_MS = 4000;
+// Chave de API só para o Google Picker (seletor de pastas) — não dá acesso a
+// nada por si só, é sempre combinada com o token de login da conta ligada.
+const GOOGLE_PICKER_API_KEY = 'AIzaSyCJRu90ZpHV2IyNsBkrvlHzM1rmEiuM7W8';
+let gPickerLoaded = false;
 
 let gTokenClient = null;
 let gAccessToken = null;
@@ -2075,9 +2083,20 @@ function updateDriveUI(){
   setEl('btnDriveSignIn', el=> el.style.display = signed && !hasError ? 'none' : '');
   setEl('btnDriveBackup', el=> el.style.display = signed ? '' : 'none');
   setEl('btnDriveRestore', el=> el.style.display = signed ? '' : 'none');
+  setEl('btnDriveChooseFolder', el=> el.style.display = signed ? '' : 'none');
   setEl('btnDriveSignOut', el=> el.style.display = signed ? '' : 'none');
   const last = localStorage.getItem('pdconfort:drive-last-sync');
   setEl('syncLastSync', el=> el.textContent = last ? ('Última sincronização: ' + new Date(last).toLocaleString('pt-PT')) : '');
+  const folderName = localStorage.getItem('pdconfort:drive-folder-name');
+  setEl('syncFolderNote', el=>{
+    if(signed && folderName){
+      el.style.display = '';
+      el.textContent = 'O backup é guardado dentro da pasta "' + folderName + '" na tua Google Drive.';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  setEl('btnDriveChooseFolder', el=> el.textContent = folderName ? 'Mudar pasta de backup' : 'Escolher pasta de backup');
   if(!driveConfigured()){
     setEl('btnDriveSignIn', el=>{ el.disabled = true; el.title = 'Configura primeiro o Client ID do Google (ver LEIA-ME-INSTALACAO.md)'; });
   }
@@ -2192,7 +2211,9 @@ function driveSignOut(){
 async function driveFindFileId(){
   const cached = localStorage.getItem('pdconfort:drive-file-id');
   if(cached) return cached;
-  const q = encodeURIComponent(`name='${DRIVE_BACKUP_FILENAME}' and trashed=false`);
+  const folderId = localStorage.getItem('pdconfort:drive-folder-id');
+  const nameQ = `name='${DRIVE_BACKUP_FILENAME}' and trashed=false`;
+  const q = encodeURIComponent(folderId ? `${nameQ} and '${folderId}' in parents` : nameQ);
   const res = await driveApiFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)`);
   if(!res.ok) throw new Error('Falha ao procurar backup no Drive (' + res.status + ')');
   const data = await res.json();
@@ -2205,7 +2226,9 @@ async function driveFindFileId(){
 
 async function driveUploadBackup(payload){
   const fileId = await driveFindFileId();
+  const folderId = localStorage.getItem('pdconfort:drive-folder-id');
   const metadata = { name: DRIVE_BACKUP_FILENAME, mimeType: 'application/json' };
+  if(folderId && !fileId) metadata.parents = [folderId];
   const boundary = 'pdconfort_' + Date.now();
   const body =
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(fileId ? {} : metadata)}\r\n` +
@@ -2231,6 +2254,61 @@ async function driveDownloadBackup(){
   const res = await driveApiFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
   if(!res.ok) throw new Error('Falha ao transferir backup do Drive (' + res.status + ')');
   return await res.json();
+}
+
+/* ---------- Escolher pasta de backup (Google Picker) ----------
+   Com o âmbito "drive.file" a app não consegue simplesmente listar/procurar
+   pastas que já existiam antes (só vê o que ela própria cria). O Google
+   Picker resolve isto: o utilizador escolhe explicitamente uma pasta já
+   existente, e a partir daí a app fica autorizada a criar/atualizar o
+   ficheiro de backup lá dentro. */
+function loadPickerApi(){
+  return new Promise((resolve, reject)=>{
+    if(gPickerLoaded){ resolve(); return; }
+    if(!window.gapi){ reject(new Error('Google API ainda não carregou')); return; }
+    gapi.load('picker', { callback: ()=>{ gPickerLoaded = true; resolve(); }, onerror: reject });
+  });
+}
+
+async function openFolderPicker(){
+  if(!driveConfigured()){ showToast('Google Drive ainda não está configurado'); return; }
+  if(!gAccessToken || Date.now() > gTokenExpiresAt){
+    try{ await requestDriveToken(true); }
+    catch(e){ showToast('Inicia sessão com o Google primeiro'); updateDriveUI(); return; }
+  }
+  try{
+    await loadPickerApi();
+  }catch(e){
+    console.error(e);
+    showToast('Não foi possível abrir o seletor de pastas da Google');
+    return;
+  }
+  const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+    .setSelectFolderEnabled(true)
+    .setIncludeFolders(true)
+    .setMimeTypes('application/vnd.google-apps.folder');
+  const picker = new google.picker.PickerBuilder()
+    .addView(view)
+    .setOAuthToken(gAccessToken)
+    .setDeveloperKey(GOOGLE_PICKER_API_KEY)
+    .setTitle('Escolhe a pasta onde guardar o backup')
+    .setCallback(pickerCallback)
+    .build();
+  picker.setVisible(true);
+}
+
+function pickerCallback(data){
+  if(data.action !== google.picker.Action.PICKED) return;
+  const folder = data.docs && data.docs[0];
+  if(!folder) return;
+  localStorage.setItem('pdconfort:drive-folder-id', folder.id);
+  localStorage.setItem('pdconfort:drive-folder-name', folder.name);
+  // O ficheiro de backup anterior (se existia noutro sítio) deixa de ser o
+  // usado — a partir de agora procura-se/cria-se dentro da pasta escolhida.
+  localStorage.removeItem('pdconfort:drive-file-id');
+  updateDriveUI();
+  showToast('Pasta escolhida: ' + folder.name);
+  driveBackupNow(true);
 }
 
 function buildFullBackupPayload(){
