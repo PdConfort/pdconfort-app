@@ -222,9 +222,13 @@
   /* ---------- Print area ---------- */
   #printArea{position:absolute; left:-9999px; top:0; width:760px; background:#fff; color:#111; font-family:'Segoe UI', Arial, sans-serif;}
   @media print{
-    body *{visibility:hidden;}
-    #printArea, #printArea *{visibility:visible;}
-    #printArea{position:absolute; left:0; top:0; width:100%; padding:0;}
+    /* Esconder tudo menos a área de impressão (display:none remove do fluxo da
+       página — visibility:hidden deixava o espaço do resto da app no documento,
+       o que gerava várias páginas em branco antes do conteúdo real). */
+    body{min-height:0 !important;}
+    body > *:not(#printArea){display:none !important;}
+    #printArea{position:static; left:0; top:0; width:100%; padding:0; visibility:visible;}
+    #printArea *{visibility:visible;}
     @page{margin:14mm;}
   }
   .pr-head{display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #7EC832; padding-bottom:14px; margin-bottom:18px;}
