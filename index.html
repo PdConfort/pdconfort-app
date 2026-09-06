@@ -1148,6 +1148,7 @@ function handleImportFile(e){
     renderMaterials();
     buildMaterialSelects();
     if(document.getElementById('price_mao_obra')) document.getElementById('price_mao_obra').value = otherPrices.mao_obra || '';
+    if(typeof scheduleDriveAutoSync === 'function') scheduleDriveAutoSync();
     showToast('Preços importados com sucesso');
   };
   reader.readAsText(file);
@@ -1271,6 +1272,7 @@ function handleImportExcelPrices(e){
       renderMaterials();
       buildMaterialSelects();
       if(document.getElementById('price_mao_obra')) document.getElementById('price_mao_obra').value = otherPrices.mao_obra || '';
+      if(typeof scheduleDriveAutoSync === 'function') scheduleDriveAutoSync();
       showToast('Excel importado com sucesso');
     }catch(err){ console.error(err); showToast('Erro ao importar Excel'); }
   };
