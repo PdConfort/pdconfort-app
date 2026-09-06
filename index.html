@@ -723,6 +723,16 @@ const BRAND_CATEGORIES = {
 function categoriesFor(brand){
   return BRAND_CATEGORIES[brand] || [{name:"Split", caps: CAPACITIES}];
 }
+// A marca/categoria pode ter capacidades guardadas (ex: importadas de um Excel)
+// que não estão na lista predefinida de capacidades (CAPACITIES / BRAND_CATEGORIES).
+// Sem isto, esses dados ficavam guardados mas invisíveis na app. Devolve sempre um
+// array novo — nunca altera cat.caps, que pode ser partilhado entre marcas.
+function effectiveCaps(brand, catName, caps){
+  const stored = (equipmentData[brand] && equipmentData[brand][catName]) || {};
+  const extra = Object.keys(stored).filter(k => !caps.includes(k));
+  if(!extra.length) return caps;
+  return caps.concat(extra).sort((a,b)=> Number(a)-Number(b));
+}
 // Migrate legacy flat data ({brand:{cap:{...}}}) into the categorized shape ({brand:{"Split":{cap:{...}}}})
 function normalizeEquipmentData(){
   // One-off rename: "Multi Split Série C Branca" passou a chamar-se "Split Série C - Branca".
@@ -1178,7 +1188,7 @@ function exportEquipmentExcel(){
   const rows1 = [["Marca","Categoria","Capacidade (BTU)","Modelo","Preço (€)"]];
   BRANDS.forEach(brand=>{
     categoriesFor(brand).forEach(cat=>{
-      cat.caps.forEach(cap=>{
+      effectiveCaps(brand, cat.name, cat.caps).forEach(cap=>{
         const rec = (equipmentData[brand] && equipmentData[brand][cat.name] && equipmentData[brand][cat.name][cap]) || {modelo:'',preco:''};
         rows1.push([brand, cat.name, Number(cap), rec.modelo||'', rec.preco!=='' && rec.preco!=null ? Number(rec.preco) : '']);
       });
@@ -1286,7 +1296,7 @@ function handleImportExcelPrices(e){
 function countFilled(brand){
   let filled = 0, total = 0;
   categoriesFor(brand).forEach(cat=>{
-    cat.caps.forEach(cap=>{
+    effectiveCaps(brand, cat.name, cat.caps).forEach(cap=>{
       total++;
       const rec = equipmentData[brand][cat.name][cap];
       if(rec && (rec.preco || rec.modelo)) filled++;
@@ -1319,7 +1329,7 @@ function buildBrandList(){
         heading.textContent = cat.name;
         body.appendChild(heading);
       }
-      cat.caps.forEach(cap=>{
+      effectiveCaps(brand, cat.name, cat.caps).forEach(cap=>{
         const rec = equipmentData[brand][cat.name][cap];
         const row = document.createElement('div');
         row.className = 'cap-row';
@@ -1354,7 +1364,7 @@ function buildEquipSelect(){
   sel.innerHTML = '<option value="">— escolher —</option>';
   BRANDS.forEach(brand=>{
     categoriesFor(brand).forEach(cat=>{
-      const caps = cat.caps.filter(c=> equipmentData[brand][cat.name][c] && (equipmentData[brand][cat.name][c].preco || equipmentData[brand][cat.name][c].modelo));
+      const caps = effectiveCaps(brand, cat.name, cat.caps).filter(c=> equipmentData[brand][cat.name][c] && (equipmentData[brand][cat.name][c].preco || equipmentData[brand][cat.name][c].modelo));
       if(!caps.length) return;
       const og = document.createElement('optgroup');
       og.label = cat.name === 'Split' ? brand : `${brand} — ${cat.name}`;
