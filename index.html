@@ -726,7 +726,18 @@ const BRAND_CATEGORIES = {
   ]
 };
 function categoriesFor(brand){
-  return BRAND_CATEGORIES[brand] || [{name:"Split", caps: CAPACITIES}];
+  const base = BRAND_CATEGORIES[brand] || [{name:"Split", caps: CAPACITIES}];
+  const stored = equipmentData[brand];
+  if(!stored) return base;
+  // Além das categorias pré-definidas acima, inclui também categorias inteiramente
+  // novas que já existam nos dados guardados (ex: depois de importar um Excel com
+  // uma categoria de produto — "Multisplit exterior", por exemplo — que ainda não
+  // estava prevista aqui). As capacidades dessas categorias novas são descobertas
+  // automaticamente por effectiveCaps(), tal como já acontece para capacidades
+  // extra dentro de categorias já conhecidas.
+  const extraNames = Object.keys(stored).filter(name => !base.some(c => c.name === name));
+  if(!extraNames.length) return base;
+  return base.concat(extraNames.map(name => ({name, caps: []})));
 }
 // A marca/categoria pode ter capacidades guardadas (ex: importadas de um Excel)
 // que não estão na lista predefinida de capacidades (CAPACITIES / BRAND_CATEGORIES).
