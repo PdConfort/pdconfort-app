@@ -3,7 +3,7 @@
    Windows e no Android. Nunca guarda em cache pedidos ao Google
    (login / Drive) — esses precisam sempre de ligação à internet. */
 
-const CACHE_NAME = 'pdconfort-v6';
+const CACHE_NAME = 'pdconfort-v7';
 const APP_SHELL = [
   './',
   './index.html',
