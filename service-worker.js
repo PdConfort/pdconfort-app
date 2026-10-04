@@ -1,9 +1,9 @@
-/* PD Confort — Service Worker
+/* PD Comfort — Service Worker
    Guarda a app em cache para funcionar offline e permite "instalar" no
    Windows e no Android. Nunca guarda em cache pedidos ao Google
    (login / Drive) — esses precisam sempre de ligação à internet. */
 
-const CACHE_NAME = 'pdconfort-v5';
+const CACHE_NAME = 'pdconfort-v6';
 const APP_SHELL = [
   './',
   './index.html',

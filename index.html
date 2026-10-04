@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PD Confort — Gerador de Orçamentos</title>
-<meta name="description" content="Gerador de orçamentos de climatização, manutenção e materiais — PD Confort.">
+<title>PD Comfort — Gerador de Orçamentos</title>
+<meta name="description" content="Gerador de orçamentos de climatização, manutenção e materiais — PD Comfort.">
 <meta name="theme-color" content="#101417">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
@@ -13,7 +13,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PD Confort">
+<meta name="apple-mobile-web-app-title" content="PD Comfort">
 <style>
   :root{
     --bg:#101417;
@@ -272,7 +272,7 @@
     </div>
     <input type="file" id="logoInput" accept="image/*" style="display:none;">
     <div>
-      <div class="company-name">PD <em>Confort</em></div>
+      <div class="company-name">PD <em>Comfort</em></div>
       <div class="company-sub">Climatização, Higienização e Manutenção</div>
     </div>
   </div>
@@ -415,7 +415,7 @@
       <button class="btn btn-accent" onclick="generatePDF()">🖨️ Gerar orçamento (imprimir / PDF)</button>
       <button class="btn btn-ghost" onclick="saveOrcamentoHistorico()">💾 Guardar no histórico</button>
       <button class="btn btn-ghost" onclick="newQuote()">Nova proposta</button>
-      <span style="color:var(--text-faint); font-size:.78rem; margin-left:auto;">PD Confort · 934 099 220</span>
+      <span style="color:var(--text-faint); font-size:.78rem; margin-left:auto;">PD Comfort · 934 099 220</span>
     </div>
   </section>
 
@@ -498,7 +498,7 @@
       <button class="btn btn-accent" onclick="generatePDFMnt()">🖨️ Gerar orçamento (imprimir / PDF)</button>
       <button class="btn btn-ghost" onclick="saveOrcamentoHistoricoMnt()">💾 Guardar no histórico</button>
       <button class="btn btn-ghost" onclick="newQuoteMnt()">Nova proposta</button>
-      <span style="color:var(--text-faint); font-size:.78rem; margin-left:auto;">PD Confort · 934 099 220</span>
+      <span style="color:var(--text-faint); font-size:.78rem; margin-left:auto;">PD Comfort · 934 099 220</span>
     </div>
   </section>
 
@@ -1153,7 +1153,7 @@ function exportPrices(){
   const pad = n=>String(n).padStart(2,'0');
   const d = new Date();
   a.href = url;
-  a.download = `pdconfort-precos-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+  a.download = `pdcomfort-precos-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   showToast('Backup de preços exportado');
@@ -1242,7 +1242,7 @@ function exportEquipmentExcel(){
 
   const pad = n=>String(n).padStart(2,'0');
   const d = new Date();
-  XLSX.writeFile(wb, `pdconfort-precos-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
+  XLSX.writeFile(wb, `pdcomfort-precos-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
   showToast('Excel de preços exportado');
 }
 function handleImportExcelPrices(e){
@@ -1504,7 +1504,7 @@ function exportClientsExcel(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Clientes');
   const pad = n=>String(n).padStart(2,'0');
   const d = new Date();
-  XLSX.writeFile(wb, `pdconfort-clientes-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
+  XLSX.writeFile(wb, `pdcomfort-clientes-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
   showToast('Clientes exportados');
 }
 function handleImportClientsFile(e){
@@ -1679,7 +1679,7 @@ function exportMaterialsExcel(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Materiais');
   const pad = n=>String(n).padStart(2,'0');
   const d = new Date();
-  XLSX.writeFile(wb, `pdconfort-materiais-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
+  XLSX.writeFile(wb, `pdcomfort-materiais-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.xlsx`);
   showToast('Materiais exportados');
 }
 function handleImportMaterialsFile(e){
@@ -2033,10 +2033,10 @@ function buildPrintHtml(o){
   return `
     <div class="pr-head">
       <div class="pr-logo">
-        ${currentLogo ? `<img src="${currentLogo}">` : `<p class="pr-co">PD <span>Confort</span></p>`}
+        ${currentLogo ? `<img src="${currentLogo}">` : `<p class="pr-co">PD <span>Comfort</span></p>`}
       </div>
       <div class="pr-contact">
-        <b>PD Confort</b><br>
+        <b>PD Comfort</b><br>
         Climatização, Higienização e Manutenção<br>
         Tel: 934 099 220${o.email ? '<br>Email: '+escapeHtml(o.email) : ''}
       </div>
@@ -2059,7 +2059,7 @@ function buildPrintHtml(o){
       <div class="grand"><span>Total</span><span>${fmt(o.grand)}</span></div>
     </div>
     ${o.obs ? `<div class="pr-obs"><b>Observações:</b>\n${escapeHtml(o.obs)}</div>` : ''}
-    <div class="pr-foot">PD Confort — Climatização, Higienização e Manutenção &nbsp;|&nbsp; Tel: 934 099 220${o.email ? ' | Email: '+escapeHtml(o.email) : ''}</div>
+    <div class="pr-foot">PD Comfort — Climatização, Higienização e Manutenção &nbsp;|&nbsp; Tel: 934 099 220${o.email ? ' | Email: '+escapeHtml(o.email) : ''}</div>
   `;
 }
 function printHtmlAndPrint(html){
@@ -2502,7 +2502,7 @@ function exportFullBackup(){
   const pad = n=>String(n).padStart(2,'0');
   const d = new Date();
   a.href = url;
-  a.download = `pdconfort-backup-completo-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+  a.download = `pdcomfort-backup-completo-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   showToast('Cópia completa transferida');

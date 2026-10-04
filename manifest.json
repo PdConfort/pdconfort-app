@@ -1,7 +1,7 @@
 {
-  "name": "PD Confort — Gerador de Orçamentos",
-  "short_name": "PD Confort",
-  "description": "Gerador de orçamentos de climatização, manutenção e materiais da PD Confort, com backup automático no Google Drive.",
+  "name": "PD Comfort — Gerador de Orçamentos",
+  "short_name": "PD Comfort",
+  "description": "Gerador de orçamentos de climatização, manutenção e materiais da PD Comfort, com backup automático no Google Drive.",
   "start_url": "./index.html",
   "id": "./index.html",
   "scope": "./",
