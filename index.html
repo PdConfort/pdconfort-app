@@ -529,7 +529,12 @@
         <button class="btn btn-ghost" onclick="document.getElementById('importMaterialsFile').click()">⬆️ Importar Excel</button>
         <input type="file" id="importMaterialsFile" accept=".xlsx,.xls" style="display:none;">
       </div>
-      <div class="field" style="margin-bottom:16px;"><label>Pesquisar</label><input type="text" id="materialSearch" placeholder="Filtrar por fornecedor ou material..."></div>
+      <div class="field" style="margin-bottom:10px;"><label>Pesquisar</label><input type="text" id="materialSearch" placeholder="Filtrar por fornecedor ou material..."></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+        <div class="field small" style="max-width:200px;"><label>Ajustar preços (%)</label><input type="number" step="0.1" id="matPercent" placeholder="Ex.: 10 ou -5"></div>
+        <button class="btn btn-ghost" onclick="applyMaterialPercent()">Aplicar aos materiais da lista</button>
+      </div>
+      <p class="hint" style="margin-top:-8px;">Para alterar um preço clique em <b>Editar</b> na linha e depois em <b>Gravar</b>. Para subir vários de uma vez (ex.: cobre), pesquise "cobre" e aplique a percentagem.</p>
       <div class="row-line" style="grid-template-columns:1.1fr 1.6fr .8fr .8fr .8fr auto;">
         <div class="field"><label>Fornecedor</label><input type="text" id="newMatFornecedor" placeholder="Ex.: Calor Condicionado"></div>
         <div class="field"><label>Material</label><input type="text" id="newMatMaterial" placeholder="Descrição do material"></div>
@@ -1575,9 +1580,72 @@ function renderMaterials(){
       <td class="num">${m.precoPVP!=='' && m.precoPVP!=null ? fmt(m.precoPVP) : '—'}</td>
       <td class="num">${m.precoDesconto!=='' && m.precoDesconto!=null ? fmt(m.precoDesconto) : '—'}</td>
       <td class="num">${m.precoUnidade!=='' && m.precoUnidade!=null ? fmt(m.precoUnidade) : '—'}</td>
-      <td><button class="btn btn-danger" onclick="removeMaterial('${m.id}')">Remover</button></td>
+      <td style="white-space:nowrap;"><button class="btn btn-ghost" onclick="editMaterial('${m.id}')">Editar</button> <button class="btn btn-danger" onclick="removeMaterial('${m.id}')">Remover</button></td>
     </tr>
   `).join('');
+}
+/* Edição dos preços (e nome/fornecedor) diretamente na tabela */
+let editingMaterialId = null;
+function editMaterial(id){
+  if(editingMaterialId && editingMaterialId!==id) renderMaterials();
+  const m = materials.find(x=>x.id===id);
+  if(!m) return;
+  editingMaterialId = id;
+  const btn = [...document.querySelectorAll('#materialsBody button')].find(b=>b.getAttribute('onclick')===`editMaterial('${id}')`);
+  const tr = btn && btn.closest('tr');
+  if(!tr) return;
+  const v = x=> (x===''||x==null) ? '' : x;
+  tr.innerHTML = `
+    <td><input type="text" data-f="fornecedor" value="${escapeHtml(m.fornecedor||'')}" style="width:100%;"></td>
+    <td><input type="text" data-f="material" value="${escapeHtml(m.material)}" style="width:100%;"></td>
+    <td class="num"><input type="number" step="0.01" data-f="precoPVP" value="${v(m.precoPVP)}" style="width:90px; text-align:right;"></td>
+    <td class="num"><input type="number" step="0.01" data-f="precoDesconto" value="${v(m.precoDesconto)}" style="width:90px; text-align:right;"></td>
+    <td class="num"><input type="number" step="0.01" data-f="precoUnidade" value="${v(m.precoUnidade)}" style="width:90px; text-align:right;"></td>
+    <td style="white-space:nowrap;"><button class="btn btn-accent" onclick="saveMaterialEdit('${id}')">Gravar</button> <button class="btn btn-ghost" onclick="cancelMaterialEdit()">Cancelar</button></td>`;
+  tr.querySelectorAll('input').forEach(inp=>inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter') saveMaterialEdit(id);
+    if(e.key==='Escape') cancelMaterialEdit();
+  }));
+  const first = tr.querySelector('input[data-f="precoPVP"]');
+  if(first){ first.focus(); first.select(); }
+}
+function saveMaterialEdit(id){
+  const m = materials.find(x=>x.id===id);
+  const tr = document.querySelector('#materialsBody input[data-f]')?.closest('tr');
+  if(!m || !tr) return;
+  const get = f=> tr.querySelector(`input[data-f="${f}"]`).value;
+  const num = v=>{ const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? '' : n; };
+  const material = get('material').trim();
+  if(!material){ showToast('Indique o nome do material'); return; }
+  m.fornecedor = get('fornecedor').trim();
+  m.material = material;
+  m.precoPVP = num(get('precoPVP'));
+  m.precoDesconto = num(get('precoDesconto'));
+  m.precoUnidade = num(get('precoUnidade'));
+  editingMaterialId = null;
+  saveMaterials();
+  renderMaterials();
+  buildMaterialSelects();
+  showToast('Preços gravados');
+}
+function cancelMaterialEdit(){ editingMaterialId = null; renderMaterials(); }
+/* Aumento/redução em % aos materiais visíveis (ex.: pesquisar "cobre" e aplicar +10%) */
+function applyMaterialPercent(){
+  const pct = parseFloat(String(document.getElementById('matPercent').value).replace(',','.'));
+  if(isNaN(pct) || pct===0){ showToast('Indique a percentagem (ex.: 10 ou -5)'); return; }
+  const q = (document.getElementById('materialSearch').value||'').toLowerCase().trim();
+  const list = q ? materials.filter(m=> `${m.fornecedor} ${m.material}`.toLowerCase().includes(q)) : materials;
+  if(!list.length){ showToast('Nenhum material na lista'); return; }
+  const alvo = q ? `aos ${list.length} materiais filtrados por "${q}"` : `a TODOS os ${list.length} materiais`;
+  if(!confirm(`Aplicar ${pct>0?'+':''}${pct}% ${alvo}?`)) return;
+  const f = 1 + pct/100;
+  const adj = v=> (v===''||v==null||isNaN(parseFloat(v))) ? v : Math.round(parseFloat(v)*f*100)/100;
+  list.forEach(m=>{ m.precoPVP = adj(m.precoPVP); m.precoDesconto = adj(m.precoDesconto); m.precoUnidade = adj(m.precoUnidade); });
+  document.getElementById('matPercent').value = '';
+  saveMaterials();
+  renderMaterials();
+  buildMaterialSelects();
+  showToast('Preços atualizados');
 }
 function materialBestPrice(m){
   if(m.precoUnidade!=='' && m.precoUnidade!=null) return m.precoUnidade;
