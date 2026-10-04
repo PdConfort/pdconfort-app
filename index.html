@@ -299,7 +299,7 @@
       <div class="company-mini">
         <div class="grow field">
           <label>Email de contacto</label>
-          <input type="email" id="companyEmail" placeholder="geral@opcaogarantida.pt">
+          <input type="email" id="companyEmail" placeholder="geralpdcomfort@gmail.com">
         </div>
         <div class="fixed-phone">Telefone: <b>934 099 220</b></div>
       </div>
@@ -1032,6 +1032,11 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   clients       = await storageGet('clients', []);
   historico     = await storageGet('quotes-history', []);
   const company = await storageGet('company-info', {});
+  // Email da empresa: por defeito geralpdcomfort@gmail.com (corrige o antigo da Opção Garantida)
+  if(!company.email || /opcaogarantida|op[cç][aã]o\s*garantida/i.test(company.email)){
+    company.email = 'geralpdcomfort@gmail.com';
+    storageSet('company-info', {...company});
+  }
   document.getElementById('companyEmail').value = company.email || '';
   if(company.logo){ setLogoPreview(company.logo); }
   else { setLogoPreview(DEFAULT_LOGO); currentLogo = DEFAULT_LOGO; }
