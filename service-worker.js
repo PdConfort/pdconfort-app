@@ -3,7 +3,7 @@
    Windows e no Android. Nunca guarda em cache pedidos ao Google
    (login / Drive) — esses precisam sempre de ligação à internet. */
 
-const CACHE_NAME = 'pdconfort-v12';
+const CACHE_NAME = 'pdconfort-v13';
 const APP_SHELL = [
   './',
   './index.html',
@@ -18,7 +18,8 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      // cache:'reload' garante que vai buscar os ficheiros ao servidor e não a uma cópia antiga do navegador
+      .then((cache) => cache.addAll(APP_SHELL.map((u) => new Request(u, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -41,6 +42,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Páginas (index.html): primeiro a rede, para abrir sempre a versão mais recente;
+  // só usa a cópia guardada se não houver internet.
+  if (req.mode === 'navigate' || url.endsWith('/index.html')) {
+    event.respondWith(
+      fetch(req, { cache: 'no-store' }).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req).then((c) => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Restantes ficheiros (ícones, bibliotecas): cópia guardada primeiro, atualizada em segundo plano.
   event.respondWith(
     caches.match(req).then((cached) => {
       const network = fetch(req).then((res) => {
