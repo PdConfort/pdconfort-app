@@ -2014,7 +2014,7 @@ function reprintHistorico(id){
   const r = historico.find(x=>x.id===id);
   if(!r) return;
   const html = buildPrintHtml({
-    title: r.tipo === 'Manutenção Preventiva' ? 'ORÇAMENTO — MANUTENÇÃO PREVENTIVA' : 'ORÇAMENTO — EQUIPAMENTO',
+    title: 'ORÇAMENTO',
     num: r.numero, date: r.dataStr, validity: r.validity,
     nome: r.cliente.nome, morada: r.cliente.morada, nif: r.cliente.nif,
     itemsList: r.items, subtotal: r.subtotal, ivaOn: r.ivaOn, rate: r.rate, ivaVal: r.ivaVal, grand: r.grand,
@@ -2127,7 +2127,7 @@ function generatePDF(){
   if(!items.length){ showToast('Adicione pelo menos um item'); return; }
   const record = buildOrcamentoRecord();
   const html = buildPrintHtml({
-    title:'ORÇAMENTO — EQUIPAMENTO', num: record.numero, date: record.dataStr, validity: record.validity,
+    title:'ORÇAMENTO', num: record.numero, date: record.dataStr, validity: record.validity,
     nome: record.cliente.nome, morada: record.cliente.morada, nif: record.cliente.nif,
     itemsList: items, subtotal: record.subtotal, ivaOn: record.ivaOn, rate: record.rate, ivaVal: record.ivaVal, grand: record.grand,
     obs: record.obs, email: record.email
@@ -2139,7 +2139,7 @@ function generatePDFMnt(){
   if(!itemsMnt.length){ showToast('Adicione pelo menos um item'); return; }
   const record = buildOrcamentoRecordMnt();
   const html = buildPrintHtml({
-    title:'ORÇAMENTO — MANUTENÇÃO PREVENTIVA', num: record.numero, date: record.dataStr, validity: record.validity,
+    title:'ORÇAMENTO', num: record.numero, date: record.dataStr, validity: record.validity,
     nome: record.cliente.nome, morada: record.cliente.morada, nif: record.cliente.nif,
     itemsList: itemsMnt, subtotal: record.subtotal, ivaOn: record.ivaOn, rate: record.rate, ivaVal: record.ivaVal, grand: record.grand,
     obs: record.obs, email: record.email
