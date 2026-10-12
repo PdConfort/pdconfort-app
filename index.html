@@ -107,7 +107,12 @@
   .grid{display:grid; gap:14px;}
   .grid.cols-2{grid-template-columns:1fr 1fr;}
   .grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
-  @media(max-width:680px){ .grid.cols-2, .grid.cols-3{grid-template-columns:1fr;} }
+  .grid.cols-4{grid-template-columns:2fr 1fr 1fr 1.3fr;}
+  #historicoTable th[data-sort]{cursor:pointer; user-select:none; white-space:nowrap;}
+  #historicoTable th[data-sort]:hover{opacity:.8;}
+  #historicoTable th[data-sort] .arrow{display:inline-block; width:1em; opacity:.35; font-size:.8em;}
+  #historicoTable th[data-sort].sorted .arrow{opacity:1;}
+  @media(max-width:680px){ .grid.cols-2, .grid.cols-3, .grid.cols-4{grid-template-columns:1fr;} }
 
   .euro{position:relative;}
   .euro input{padding-left:26px;}
@@ -586,16 +591,28 @@
   <section class="tabpanel" id="tab-historico">
     <div class="card">
       <h2><span class="dot"></span>Histórico de orçamentos</h2>
-      <p class="hint">Pesquise por cliente ou número de orçamento, e filtre por período. Ordenado do mais recente para o mais antigo.</p>
-      <div class="grid cols-3">
+      <p class="hint">Pesquise por cliente ou número de orçamento, filtre por período e escolha a ordenação. Também pode clicar no título de uma coluna para ordenar (clique outra vez para inverter).</p>
+      <div class="grid cols-4">
         <div class="field"><label>Cliente ou nº de orçamento</label><input type="text" id="histSearch" placeholder="Ex.: João Silva ou ORC-2026..."></div>
         <div class="field"><label>De</label><input type="date" id="histDe"></div>
         <div class="field"><label>Até</label><input type="date" id="histAte"></div>
+        <div class="field"><label>Ordenar por</label><select id="histSort">
+          <option value="data:desc">Data (mais recente primeiro)</option>
+          <option value="data:asc">Data (mais antiga primeiro)</option>
+          <option value="cliente:asc">Cliente (A → Z)</option>
+          <option value="cliente:desc">Cliente (Z → A)</option>
+          <option value="numero:desc">Nº orçamento (maior primeiro)</option>
+          <option value="numero:asc">Nº orçamento (menor primeiro)</option>
+          <option value="total:desc">Total (maior primeiro)</option>
+          <option value="total:asc">Total (menor primeiro)</option>
+          <option value="tipo:asc">Tipo (A → Z)</option>
+          <option value="tipo:desc">Tipo (Z → A)</option>
+        </select></div>
       </div>
     </div>
     <div class="card">
       <table class="items" id="historicoTable">
-        <thead><tr><th>Nº Orçamento</th><th>Tipo</th><th>Cliente</th><th class="num">Data</th><th class="num">Total</th><th></th></tr></thead>
+        <thead><tr><th data-sort="numero">Nº Orçamento <span class="arrow"></span></th><th data-sort="tipo">Tipo <span class="arrow"></span></th><th data-sort="cliente">Cliente <span class="arrow"></span></th><th class="num" data-sort="data">Data <span class="arrow"></span></th><th class="num" data-sort="total">Total <span class="arrow"></span></th><th></th></tr></thead>
         <tbody id="historicoBody"><tr class="empty-row"><td colspan="6">Ainda sem orçamentos gerados.</td></tr></tbody>
       </table>
     </div>
@@ -1090,6 +1107,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('clienteSelectEquip').addEventListener('change', (e)=>applyClientTo('cli', e.target.value));
   document.getElementById('clienteSelectMnt').addEventListener('change', (e)=>applyClientTo('cliMnt', e.target.value));
   document.getElementById('histSearch').addEventListener('input', renderHistorico);
+  initHistSort();
   document.getElementById('histDe').addEventListener('change', renderHistorico);
   document.getElementById('histAte').addEventListener('change', renderHistorico);
 });
@@ -1980,10 +1998,64 @@ function filteredHistorico(){
     if(ate && (!dISO || dISO > ate)) return false;
     return true;
   });
-  list.sort((a,b)=> (b.dataISO||b.createdAt||'').localeCompare(a.dataISO||a.createdAt||''));
+  const [key, dir] = (document.getElementById('histSort').value || 'data:desc').split(':');
+  const mult = dir === 'asc' ? 1 : -1;
+  const dateOf = r => r.dataISO || r.createdAt || '';
+  const coll = new Intl.Collator('pt', {sensitivity:'base', numeric:true});
+  const val = {
+    data:    r => dateOf(r),
+    cliente: r => (r.cliente && r.cliente.nome) || '',
+    numero:  r => r.numero || '',
+    tipo:    r => r.tipo || '',
+    total:   r => Number(r.grand) || 0,
+  }[key] || (r => dateOf(r));
+  list.sort((a,b)=>{
+    const va = val(a), vb = val(b);
+    // vazios ficam sempre no fim
+    const ea = va === '' , eb = vb === '';
+    if(ea !== eb) return ea ? 1 : -1;
+    let c = (typeof va === 'number') ? (va - vb) : coll.compare(va, vb);
+    if(c === 0) c = dateOf(b).localeCompare(dateOf(a)); // desempate: mais recente primeiro
+    else c *= mult;
+    return c;
+  });
   return list;
 }
+const HIST_SORT_DEFAULT_DIR = {data:'desc', numero:'desc', total:'desc', cliente:'asc', tipo:'asc'};
+function updateHistSortHeaders(){
+  const [key, dir] = (document.getElementById('histSort').value || 'data:desc').split(':');
+  document.querySelectorAll('#historicoTable th[data-sort]').forEach(th=>{
+    const on = th.dataset.sort === key;
+    th.classList.toggle('sorted', on);
+    th.querySelector('.arrow').textContent = on ? (dir === 'asc' ? '▲' : '▼') : '↕';
+  });
+}
+function setHistSort(value){
+  const sel = document.getElementById('histSort');
+  sel.value = value;
+  try{ localStorage.setItem('hist-sort', value); }catch(e){}
+  renderHistorico();
+}
+function initHistSort(){
+  const sel = document.getElementById('histSort');
+  try{
+    const saved = localStorage.getItem('hist-sort');
+    if(saved && [...sel.options].some(o=>o.value===saved)) sel.value = saved;
+  }catch(e){}
+  sel.addEventListener('change', ()=> setHistSort(sel.value));
+  document.querySelectorAll('#historicoTable th[data-sort]').forEach(th=>{
+    th.title = 'Clique para ordenar';
+    th.addEventListener('click', ()=>{
+      const k = th.dataset.sort;
+      const [curK, curD] = sel.value.split(':');
+      const d = (curK === k) ? (curD === 'asc' ? 'desc' : 'asc') : HIST_SORT_DEFAULT_DIR[k];
+      setHistSort(`${k}:${d}`);
+    });
+  });
+  updateHistSortHeaders();
+}
 function renderHistorico(){
+  updateHistSortHeaders();
   const list = filteredHistorico();
   const body = document.getElementById('historicoBody');
   if(!list.length){
