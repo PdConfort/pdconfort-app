@@ -118,6 +118,7 @@
   .euro input{padding-left:26px;}
   .euro::before{content:"€"; position:absolute; left:11px; top:34px; color:var(--text-faint); font-size:.85rem; pointer-events:none;}
   .euro.small::before{top:11px;}
+  .euro.small:has(> label)::before{top:34px;}
 
   .row-line{
     display:grid; grid-template-columns:1.4fr 1fr 1fr auto; gap:10px; align-items:end;
@@ -280,6 +281,36 @@
   #printArea .pc-box.t{background:#13285a; border-bottom:4px solid #c8952e;} #printArea .pc-box.t small{color:#e6c882;} #printArea .pc-box.t b{color:#fff;}
   #printArea .pc-note{margin-top:18px; font-size:10.5px; color:#5d6782; line-height:1.5;}
   #printArea .pc-foot{margin-top:34px; background:#13285a; border-top:2px solid #c8952e; color:#fff; font-size:11px; padding:9px 14px; display:flex; justify-content:space-between; border-radius:6px;}
+
+  /* ============ TELEMÓVEL (ecrãs estreitos) ============ */
+  @media (max-width:680px){
+    header{padding:10px 12px 8px; gap:8px; flex-wrap:wrap;}
+    .brandmark{gap:10px;}
+    header .logo-slot{width:40px; height:40px;}
+    .company-name{font-size:1.05rem;}
+    .company-sub{display:none;}
+    /* menu numa só linha, desliza para o lado */
+    nav.tabs{flex-wrap:nowrap; overflow-x:auto; width:100%; margin:0 -12px; padding:2px 12px 4px; justify-content:flex-start;
+             -webkit-overflow-scrolling:touch; scrollbar-width:none; scroll-snap-type:x proximity;}
+    nav.tabs::-webkit-scrollbar{display:none;}
+    nav.tabs button{flex:none; padding:8px 12px; font-size:.85rem; scroll-snap-align:start; background:var(--panel-2);}
+    nav.tabs button.active{background:var(--accent);}
+    main{padding:14px 10px 110px;}
+    .card{padding:16px 14px; margin-bottom:14px;}
+    /* linhas de adicionar itens: duas colunas, campos de texto e botões a toda a largura */
+    .row-line{grid-template-columns:1fr 1fr !important; gap:10px;}
+    .row-line > .field:not(.small):not(.euro){grid-column:1 / -1;}
+    .row-line > .btn, .row-line > button{grid-column:1 / -1; width:100%;}
+    /* tabelas: deslizam para o lado em vez de esmagar */
+    table.items{display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; font-size:.85rem;}
+    table.items td, table.items th{padding:8px;}
+    /* barra de ações fixa em baixo, mais compacta */
+    .actions-bar{padding:10px; gap:8px; bottom:6px;}
+    .actions-bar .btn{flex:1 1 auto; padding:10px 12px; font-size:.85rem;}
+    .actions-bar > span{display:none !important;}
+    input[type=text], input[type=number], input[type=email], input[type=date], textarea, select{font-size:16px;} /* evita zoom automático */
+    .toast{bottom:90px; max-width:calc(100vw - 32px);}
+  }
   @media print{
     /* Esconder tudo menos a área de impressão (display:none remove do fluxo da
        página — visibility:hidden deixava o espaço do resto da app no documento,
@@ -1326,6 +1357,7 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
+  const ab=document.querySelector('.tab-btn.active'); if(ab && window.innerWidth<=680){ try{ ab.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'}); }catch(e){} window.scrollTo(0,0); }
 }
 
 function resetMeta(suffix){
