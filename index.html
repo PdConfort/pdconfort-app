@@ -712,7 +712,7 @@
 
     <div class="card">
       <h2><span class="dot"></span>Google Drive</h2>
-      <p class="hint">Liga a app à tua conta Google para guardar automaticamente uma cópia de segurança de todos os dados (equipamentos, materiais, clientes, histórico e logótipo) na tua Google Drive. Podes também restaurar os dados a partir do backup guardado noutro computador ou telemóvel.</p>
+      <p class="hint">Liga a app à tua conta Google para guardar automaticamente uma cópia de segurança de todos os dados (equipamentos, materiais, clientes, histórico e logótipo) na tua Google Drive. Liga a mesma conta no PC e no telemóvel: ao abrir a app (ou ao voltar a ela) os dados do outro aparelho são trazidos automaticamente. Se os dois tiverem alterações, os clientes, materiais e orçamentos são juntados, sem se perder nada.</p>
 
       <div id="syncSetupWarning" class="sync-warn" style="display:none;">
         Ainda não foi configurado o acesso ao Google Drive nesta app (falta o Client ID do Google Cloud). Consulta o ficheiro <code>LEIA-ME-INSTALACAO.md</code> incluído para o passo a passo de configuração. Entretanto, podes continuar a usar a app normalmente e fazer backup/restauro local em baixo.
@@ -1210,6 +1210,7 @@ function flushAllPendingSaves(){
   Object.keys(pendingGetters).forEach(flushKey);
 }
 function debouncedSave(key, getter){
+  markLocalChange();
   pendingGetters[key] = getter;
   clearTimeout(saveTimers[key]);
   saveTimers[key] = setTimeout(()=>{
@@ -1358,7 +1359,7 @@ function handleLogoUpload(e){
       canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
       const dataUrl = canvas.toDataURL('image/png', .9);
       setLogoPreview(dataUrl);
-      storageSet('company-info', {email: document.getElementById('companyEmail').value, logo: dataUrl});
+      markLocalChange(); storageSet('company-info', {email: document.getElementById('companyEmail').value, logo: dataUrl});
       showToast('Logotipo guardado');
     };
     img.src = ev.target.result;
@@ -1400,14 +1401,14 @@ function handleImportFile(e){
     let data;
     try{ data = JSON.parse(ev.target.result); }
     catch(err){ showToast('Ficheiro inválido'); return; }
-    if(data.equipmentData){ equipmentData = data.equipmentData; normalizeEquipmentData(); storageSet('equipment-data', equipmentData); }
-    if(data.otherPrices){ otherPrices = data.otherPrices; storageSet('other-prices', otherPrices); }
-    if(data.mntPrices){ mntPrices = data.mntPrices; storageSet('maintenance-prices', mntPrices); }
-    if(data.materials){ materials = data.materials.map(m=>({id: m.id || genId(), ...m})); storageSet('materials-data', materials); }
+    markLocalChange(); if(data.equipmentData){ equipmentData = data.equipmentData; normalizeEquipmentData(); storageSet('equipment-data', equipmentData); }
+    markLocalChange(); if(data.otherPrices){ otherPrices = data.otherPrices; storageSet('other-prices', otherPrices); }
+    markLocalChange(); if(data.mntPrices){ mntPrices = data.mntPrices; storageSet('maintenance-prices', mntPrices); }
+    markLocalChange(); if(data.materials){ materials = data.materials.map(m=>({id: m.id || genId(), ...m})); storageSet('materials-data', materials); }
     if(data.companyEmail !== undefined || data.companyLogo){
       document.getElementById('companyEmail').value = data.companyEmail || '';
       if(data.companyLogo) setLogoPreview(data.companyLogo);
-      storageSet('company-info', {email: data.companyEmail || '', logo: data.companyLogo || currentLogo});
+      markLocalChange(); storageSet('company-info', {email: data.companyEmail || '', logo: data.companyLogo || currentLogo});
     }
     buildBrandList();
     buildCopperRows();
@@ -1499,7 +1500,7 @@ function handleImportExcelPrices(e){
           equipmentData[brand][catName][capStr] = { modelo: modelo||'', preco: (preco===''||preco==null) ? '' : String(preco) };
         }
         normalizeEquipmentData();
-        storageSet('equipment-data', equipmentData);
+        markLocalChange(); storageSet('equipment-data', equipmentData);
       }
       const ws2 = wb.Sheets['Outros'];
       if(ws2){
@@ -1509,7 +1510,7 @@ function handleImportExcelPrices(e){
           if(!key) continue;
           otherPrices[key] = (preco===''||preco==null) ? '' : String(preco);
         }
-        storageSet('other-prices', otherPrices);
+        markLocalChange(); storageSet('other-prices', otherPrices);
       }
       const ws3 = wb.Sheets['Manutencao'];
       if(ws3){
@@ -1519,7 +1520,7 @@ function handleImportExcelPrices(e){
           if(!key) continue;
           mntPrices[key] = (preco===''||preco==null) ? '' : String(preco);
         }
-        storageSet('maintenance-prices', mntPrices);
+        markLocalChange(); storageSet('maintenance-prices', mntPrices);
       }
       const ws4 = wb.Sheets['Materiais'];
       if(ws4){
@@ -1531,7 +1532,7 @@ function handleImportExcelPrices(e){
           if(!material) continue;
           imported.push({ id: genId(), fornecedor:String(fornecedor||''), material:String(material), precoPVP:num(pvp), precoDesconto:num(desconto), precoUnidade:num(unidade) });
         }
-        if(imported.length){ materials = imported; storageSet('materials-data', materials); }
+        markLocalChange(); if(imported.length){ materials = imported; storageSet('materials-data', materials); }
       }
       buildBrandList();
       buildCopperRows();
@@ -2505,7 +2506,7 @@ function initGisWithRetry(){
       });
       // Tenta restaurar sessão silenciosamente se já tinha sido ligado antes.
       if(localStorage.getItem('pdconfort:drive-signed-in')){
-        requestDriveToken(false).then(()=>{ updateDriveUI(); }).catch(()=>{ updateDriveUI(); });
+        requestDriveToken(false).then(()=>{ updateDriveUI(); driveAutoPull(); }).catch(()=>{ updateDriveUI(); });
       }
     }
     updateDriveUI();
@@ -2624,8 +2625,8 @@ async function driveUploadBackup(payload){
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(payload)}\r\n` +
     `--${boundary}--`;
   const url = fileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id,modifiedTime`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime`;
   const res = await driveApiFetch(url, {
     method: fileId ? 'PATCH' : 'POST',
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
@@ -2743,7 +2744,7 @@ async function driveBackupNow(silent){
   }
   try{
     setDriveStatusText('A sincronizar…');
-    await driveUploadBackup(buildFullBackupPayload());
+    await driveSync({ force: !silent });
     const now = new Date();
     localStorage.setItem('pdconfort:drive-last-sync', now.toISOString());
     localStorage.removeItem('pdconfort:drive-sync-error');
@@ -2757,6 +2758,110 @@ async function driveBackupNow(silent){
   }
 }
 
+
+/* ============================================================
+   SINCRONIZAÇÃO AUTOMÁTICA ENTRE APARELHOS (PC ⇄ Android)
+   - Ao abrir a app e ao voltar a ela, verifica se o backup no Drive
+     foi alterado por outro aparelho (pela data de modificação do
+     próprio Google Drive) e, se sim, traz os dados.
+   - Antes de enviar um backup, faz a mesma verificação, para nunca
+     apagar o que o outro aparelho gravou.
+   - Se os dois aparelhos tiverem alterações, junta clientes,
+     materiais e histórico (nada se perde); nas tabelas de preços
+     fica a versão alterada mais recentemente.
+============================================================ */
+let pdcUserActed = false;
+['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev, ()=>{ pdcUserActed = true; }, {capture:true, passive:true}));
+let pdcApplyingRemote = false;
+function markLocalChange(){
+  if(pdcApplyingRemote || !pdcUserActed) return;
+  try{ localStorage.setItem('pdconfort:local-dirty', new Date().toISOString()); }catch(e){}
+}
+function pdcApplyRemote(data){
+  pdcApplyingRemote = true;
+  try{ applyFullBackupPayload(data); flushAllPendingSaves(); }
+  finally{ pdcApplyingRemote = false; }
+}
+async function driveRemoteMtime(){
+  const fileId = await driveFindFileId();
+  if(!fileId) return null;
+  const res = await driveApiFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=modifiedTime,trashed`);
+  if(res.status === 404){ localStorage.removeItem('pdconfort:drive-file-id'); return null; }
+  if(!res.ok) throw new Error('Falha ao verificar o backup no Drive (' + res.status + ')');
+  const d = await res.json();
+  if(d.trashed){ localStorage.removeItem('pdconfort:drive-file-id'); return null; }
+  return d.modifiedTime || null;
+}
+function pdcMergeById(win, lose){
+  if(!Array.isArray(win)) return lose;
+  if(!Array.isArray(lose)) return win;
+  if(!win.every(x=>x && x.id) || !lose.every(x=>x && x.id)) return win;
+  const seen = new Set(win.map(x=>x.id));
+  return win.concat(lose.filter(x=>!seen.has(x.id)));
+}
+function pdcMergePayloads(local, remote){
+  const localAt = localStorage.getItem('pdconfort:local-dirty') || '';
+  const localNewer = localAt > (remote.exportedAt || '');
+  const W = localNewer ? local : remote, Lo = localNewer ? remote : local;
+  return Object.assign({}, W, {
+    materials: pdcMergeById(W.materials, Lo.materials),
+    clients:   pdcMergeById(W.clients,   Lo.clients),
+    historico: pdcMergeById(W.historico, Lo.historico)
+  });
+}
+let pdcSyncPromise = null;
+function driveSync(opts){
+  if(pdcSyncPromise) return pdcSyncPromise;
+  pdcSyncPromise = pdcDriveSyncCore(opts || {}).finally(()=>{ pdcSyncPromise = null; });
+  return pdcSyncPromise;
+}
+async function pdcDriveSyncCore(opts){
+  flushAllPendingSaves();
+  const dirtyAtStart = localStorage.getItem('pdconfort:local-dirty');
+  const known = localStorage.getItem('pdconfort:drive-remote-mtime');
+  const mtime = await driveRemoteMtime();
+  let merged = false;
+  if(mtime && mtime !== known){
+    const remote = await driveDownloadBackup();
+    if(remote){
+      if(!dirtyAtStart && !opts.force){
+        pdcApplyRemote(remote);
+        localStorage.setItem('pdconfort:drive-remote-mtime', mtime);
+        showToast('Dados atualizados a partir do outro aparelho');
+        return 'pulled';
+      }
+      pdcApplyRemote(pdcMergePayloads(buildFullBackupPayload(), remote));
+      merged = true;
+    }
+  }
+  if(dirtyAtStart || merged || opts.force || !mtime){
+    const res = await driveUploadBackup(buildFullBackupPayload());
+    if(res && res.modifiedTime) localStorage.setItem('pdconfort:drive-remote-mtime', res.modifiedTime);
+    if(localStorage.getItem('pdconfort:local-dirty') === dirtyAtStart) localStorage.removeItem('pdconfort:local-dirty');
+    if(merged) showToast('Dados combinados com o outro aparelho');
+    return 'pushed';
+  }
+  return 'same';
+}
+let pdcLastPull = 0;
+async function driveAutoPull(){
+  if(!driveConfigured() || !isDriveSignedIn()) return;
+  if(Date.now() - pdcLastPull < 20000) return;
+  pdcLastPull = Date.now();
+  try{
+    if(!gAccessToken || Date.now() > gTokenExpiresAt) await requestDriveToken(false);
+    setDriveStatusText('A sincronizar…');
+    await driveSync({});
+    localStorage.setItem('pdconfort:drive-last-sync', new Date().toISOString());
+    localStorage.removeItem('pdconfort:drive-sync-error');
+  }catch(e){
+    console.error(e);
+  }
+  updateDriveUI();
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) driveAutoPull(); });
+window.addEventListener('online', ()=>{ pdcLastPull = 0; driveAutoPull(); });
+
 async function driveRestoreNow(){
   if(!driveConfigured()){ showToast('Google Drive ainda não está configurado'); return; }
   if(!gAccessToken || Date.now() > gTokenExpiresAt){
@@ -2767,7 +2872,9 @@ async function driveRestoreNow(){
     const data = await driveDownloadBackup();
     if(!data){ showToast('Ainda não existe nenhum backup no Google Drive'); return; }
     if(!confirm('Isto vai substituir os dados atuais desta app pelos dados do backup guardado no Google Drive. Continuar?')) return;
-    applyFullBackupPayload(data);
+    pdcApplyRemote(data);
+    try{ const mt = await driveRemoteMtime(); if(mt) localStorage.setItem('pdconfort:drive-remote-mtime', mt); }catch(e){}
+    localStorage.removeItem('pdconfort:local-dirty');
     showToast('Dados restaurados do Google Drive');
   }catch(e){
     console.error(e);
